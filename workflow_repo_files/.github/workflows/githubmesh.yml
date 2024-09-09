@@ -1,0 +1,30 @@
+name: GitHub Actions Demo
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on:
+  workflow_dispatch:
+    inputs:
+      c2_url:
+        description: 'Send random CF url back to C2 URL'
+        required: true
+        default: 'https://www.nourl.com'
+jobs:
+  Explore-GitHub-Actions:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt update -y && sudo apt install wireguard-tools -y && python3 -m pip install httpx
+      - name: download cfd
+        run: wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared
+      - name: download wstunnel
+        run: wget https://github.com/erebe/wstunnel/releases/download/v10.1.1/wstunnel_10.1.1_linux_amd64.tar.gz -O /tmp/wstunnel.tgz && tar xvxf /tmp/wstunnel.tgz -C /usr/local/bin && chmod +x /usr/local/bin/wstunnel
+      - name: Setup wstunnel
+        run: screen -S wstunnel -dm sudo /usr/local/bin/wstunnel server ws://0.0.0.0 --restrict-to 127.0.0.1:51820
+      - name: Setup cloudflared
+        run: screen -S cloudflared -dm sudo /usr/local/bin/cloudflared tunnel --logfile /tmp/cf.log --url 127.0.0.1:80 &
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup wireguard
+        run: bash setup.sh
+      - name: Send url back to C2
+        run: python main.py "${{ github.event.inputs.c2_url }}"
+      - name: tail logs for keepalive
+        run: tail -f /tmp/cf.log
