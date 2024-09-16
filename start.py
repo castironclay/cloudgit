@@ -10,8 +10,7 @@ from libtmux import Server
 import yaml
 from githubmesh import Workflow
 import base64
-
-url = None
+from loguru import logger
 
 
 def read_creds_file():
@@ -22,76 +21,87 @@ def read_creds_file():
 
 
 def check_listening(port: int) -> None:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = s.connect_ex(("127.0.0.1", port))
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = s.connect_ex(("127.0.0.1", port))
 
-    if result == 0:
-        print("socket is open")
-        return False
+        if result == 0:
+            print("socket is open")
+            return False
 
-    else:
-        return True
-    s.close()
+        else:
+            return True
+        s.close()
+
+    except Exception as e:
+        logger.error(e)
 
 
 def listener(port: int) -> str:
-    class Server(socketserver.TCPServer):
-        # Avoid "address already used" error when frequently restarting the script
-        allow_reuse_address = True
+    try:
 
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            parsed_path = urllib.parse.urlparse(self.path)
-            query_params = urllib.parse.parse_qs(parsed_path.query)
-            global url
-            try:
-                url = query_params.get("url")[0]
-                self.send_response(200, "OK")
-                self.end_headers()
-                self.wfile.write("URL Received!".encode("utf-8"))
+        class Server(socketserver.TCPServer):
+            # Avoid "address already used" error when frequently restarting the script
+            allow_reuse_address = True
 
-            except TypeError:
-                self.send_response(200, "OK")
-                self.end_headers()
-                self.wfile.write("URL Missing!".encode("utf-8"))
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                parsed_path = urllib.parse.urlparse(self.path)
+                query_params = urllib.parse.parse_qs(parsed_path.query)
+                global url
+                try:
+                    url = query_params.get("url")[0]
+                    self.send_response(200, "OK")
+                    self.end_headers()
+                    self.wfile.write("URL Received!".encode("utf-8"))
 
-            try:
-                config = query_params.get("config")[0]
-                decoded_bytes = base64.b64decode(config)
-                decoded_string = decoded_bytes.decode("utf-8")
-                print("\n")
-                print(decoded_string)
-                print("\n")
-                self.send_response(200, "OK")
-                self.end_headers()
-                self.wfile.write("config Received!".encode("utf-8"))
+                except TypeError as e:
+                    self.send_response(200, "OK")
+                    self.end_headers()
+                    self.wfile.write("URL Missing!".encode("utf-8"))
 
-            except TypeError:
-                self.send_response(200, "OK")
-                self.end_headers()
-                self.wfile.write("URL Missing!".encode("utf-8"))
+                try:
+                    config = query_params.get("config")[0]
+                    decoded_bytes = base64.b64decode(config)
+                    decoded_string = decoded_bytes.decode("utf-8")
+                    print("\n")
+                    print(decoded_string)
+                    print("\n")
+                    self.send_response(200, "OK")
+                    self.end_headers()
+                    self.wfile.write("config Received!".encode("utf-8"))
 
-        # Override log_message to suppress logging
-        def log_message(self, format, *args):
-            # Do nothing, or you could log to a file if needed
-            pass
+                except TypeError as e:
+                    self.send_response(200, "OK")
+                    self.end_headers()
+                    self.wfile.write("URL Missing!".encode("utf-8"))
 
-    with Server(("", port), Handler) as httpd:
-        while not url:
-            httpd.handle_request()
-        httpd.server_close()
+            # Override log_message to suppress logging
+            def log_message(self, format, *args):
+                # Do nothing, or you could log to a file if needed
+                pass
 
-    return url
+        with Server(("", port), Handler) as httpd:
+            while not url:
+                httpd.handle_request()
+            httpd.server_close()
+
+        return url
+    except Exception as e:
+        logger.error(e)
 
 
 def start_server(random_port: int) -> str:
-    cf_url = None
-    if check_listening(random_port):
-        while not url:
-            print(f"Starting listener on port {random_port}")
-            cf_url = listener(random_port)
+    try:
+        cf_url = None
+        if check_listening(random_port):
+            while not url:
+                print(f"Starting listener on port {random_port}")
+                cf_url = listener(random_port)
 
-    return cf_url
+        return cf_url
+    except Exception as e:
+        logger.error(f"Error occured: {e}")
 
 
 def local_cfd(server: Server, random_port: int, log_file_name: str) -> str:
@@ -127,6 +137,7 @@ if __name__ == "__main__":
     creds = read_creds_file()
     # Will loop through multiple accounts
     for account in creds.keys():
+        url = None
         details = creds.get(account)
         work = Workflow(details)
         try:
@@ -137,18 +148,17 @@ if __name__ == "__main__":
             local_cfd_url = local_cfd(server, random_port, random_file_name)
             print("Starting workflow...")
             work.start_workflow(local_cfd_url)
-            print("Workflow started!")
             work.check_running()
-            print("Waiting for remote url...")
+            print("Workflow started!")
             cf_url = start_server(random_port)
+            print("Waiting for remote url...")
             print(
                 f"wstunnel client -L 'udp://127.0.0.1:51820:127.0.0.1:51820?timeout_sec=0' wss://{cf_url[8:]}"
             )
+            print("Killing local listener")
+            server.kill()
 
         except Exception as e:
-            print(f'Error occured: {e}')
+            logger.error(f"Error occured: {e}")
             work.cancel_workflow()
-
-        finally:
-            print("Killing local listener")
             server.kill()
