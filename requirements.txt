@@ -13,6 +13,7 @@ loguru==0.7.2
 markdown-it-py==3.0.0
 mdurl==0.1.2
 pycparser==2.22
+pyfiglet==1.0.2
 Pygments==2.18.0
 pyperclip==1.9.0
 PyYAML==6.0.2
