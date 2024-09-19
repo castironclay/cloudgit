@@ -1,9 +1,11 @@
-from tinydb import TinyDB, Query
-from pathlib import Path
 from getpass import getpass
-from rich_tables import account_details
-import encrypt
+from pathlib import Path
+
 from rich import print
+from tinydb import Query, TinyDB
+
+import encrypt
+from rich_tables import account_details
 
 
 def new_account(passphrase: str) -> bool:
@@ -15,8 +17,8 @@ def new_account(passphrase: str) -> bool:
     secured_key = encrypt.encrypt_string(passphrase, api_key)
     account_name = input("Account Name: ")
     repo_name = input("Repository Name: ")
-    accounts_table = db.table("accounts")
-    accounts_table.insert(
+    account_details = db.table("account_details")
+    account_details.insert(
         {"account_name": account_name, "api_key": secured_key, "repo_name": repo_name}
     )
 
@@ -26,11 +28,11 @@ def view_account(account_name: str, passphrase: str, unsafe: str = False) -> Non
     file = f"{home}/.cloudgit/cg.db"
 
     db = TinyDB(file)
-    table = db.table("accounts")
+    table = db.table("account_details")
     account = Query()
     details = table.get(account.account_name == account_name)
     if details is None:
-        print('Account does not exist')
+        print("Account does not exist")
         return
 
     repo_name = details.get("repo_name")
@@ -48,15 +50,10 @@ def view_account(account_name: str, passphrase: str, unsafe: str = False) -> Non
 def delete_account(account_name: str) -> None:
     home = Path.home()
     file = f"{home}/.cloudgit/cg.db"
-    obj = Path(file)
-    db = None
-
-    if not obj.exists():
-        print("Must create database first")
-
-    else:
-        db = TinyDB(file)
-        db.drop_table(account_name)
+    db = TinyDB(file)
+    table = db.table("account_details")
+    account = Query()
+    table.remove(account.account_name == account_name)
 
 
 def list_accounts() -> None:
@@ -70,6 +67,8 @@ def list_accounts() -> None:
 
     else:
         db = TinyDB(file)
-        table = db.table('accounts')
-        accounts = Query()
-        print(table.search())
+        table = db.table("account_details")
+        for index, account in enumerate(table.all()):
+            print(f'Account{index+1}: {account.get("account_name")}')
+    
+

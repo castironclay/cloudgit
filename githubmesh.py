@@ -1,24 +1,18 @@
-import yaml
-from time import sleep
-from httpx import Client
 import json
+
+from httpx import Client
 from rich import print
 
 
-def read_creds_file():
-    with open("keys.yaml", "r") as creds_file:
-        all_creds = yaml.safe_load(creds_file)
-
-    return all_creds
-
-
 class Workflow:
-    def __init__(self, account_details):
-        self.details = account_details
-        self.session = self.build_session(self.details)
+    def __init__(self, key, account, repo):
+        self.key = key
+        self.account = account
+        self.repo = repo
+        self.session = self.build_session(self.key)
 
-    def build_session(self, creds):
-        btoken = creds.get("key")
+    def build_session(self, key):
+        btoken = key
         bearer = f"Bearer {btoken}"
         auth = {"Authorization": bearer}
 
@@ -30,8 +24,7 @@ class Workflow:
         return s
 
     def start_workflow(self, url: str):
-        details = self.details
-        start = f'https://api.github.com/repos/{details.get("account")}/{details.get("repo")}/actions/workflows/{details.get("file")}/dispatches'
+        start = f"https://api.github.com/repos/{self.account}/{self.repo}/actions/workflows/githubmesh.yml/dispatches"
         s = self.session
         url_data = {"c2_url": url}
         data = {"ref": "main", "inputs": url_data}
@@ -44,8 +37,7 @@ class Workflow:
             quit()
 
     def check_running(self):
-        details = self.details
-        running = f'https://api.github.com/repos/{details.get("account")}/{details.get("repo")}/actions/runs?status=in_progress'
+        running = f"https://api.github.com/repos/{self.account}/{self.repo}/actions/runs?status=in_progress"
         s = self.session
         total_count = 0
 
@@ -59,26 +51,8 @@ class Workflow:
         self.workflow_details = active_workflow.json()
 
     def cancel_workflow(self):
-        details = self.details
         workflow_details = self.workflow_details
         workflow_id = workflow_details.get("workflow_runs")[0].get("id")
-        cancel = f"https://api.github.com/repos/{details.get("account")}/{details.get("repo")}/actions/runs/{workflow_id}/cancel"
+        cancel = f"https://api.github.com/repos/{self.account}/{self.repo}/actions/runs/{workflow_id}/cancel"
         s = self.session
         s.post(cancel)
-
-
-if __name__ == "__main__":
-    # For testing only to ensure workflows are starting.
-    # Throwaway C2 URL used
-    # Will auto-cancel the workflow
-    creds = read_creds_file()
-    for account in creds.keys():
-        print("Starting workflow")
-        details = creds.get(account)
-        work = Workflow(details)
-        work.start_workflow("https://www.google.com")
-        work.check_running()
-        print("workflow started")
-        sleep(10)
-        print("workflow cancelled")
-        work.cancel_workflow()
