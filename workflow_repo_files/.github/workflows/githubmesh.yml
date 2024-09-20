@@ -1,5 +1,6 @@
 name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+run-name: "${{ github.event.inputs.name }}"
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,6 +8,10 @@ on:
         description: 'Send random CF url back to C2 URL'
         required: true
         default: 'https://www.nourl.com'
+      name:
+        description: 'Name of the run'
+        required: true
+        default: 'name'
 jobs:
   Explore-GitHub-Actions:
     runs-on: ubuntu-latest
