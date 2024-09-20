@@ -29,11 +29,18 @@ class AccountApp(cmd2.Cmd):
     def __init__(self, db: TinyDB, passphrase: str, account_name: str):
         super().__init__()
         # Show this as the prompt when asking for input
-        self.prompt = f"⭐⭐  {account_name}: "
+        self.prompt = f"⭐⭐ {account_name}: "
         self.db = db
         self.passphrase = passphrase
         self.account_name = account_name
+        table = self.db.table("account_details")
+        account = Query()
+        details = table.get(account.account_name == self.account_name)
 
+        self.repo = details.get("repo_name")
+        self.key = encrypt.decrypt_string(self.passphrase, details.get("api_key"))
+
+        self.wf = Workflow(self.key, self.account_name, self.repo)
         # Set the default category name
         self.default_category = "Built-in Commands"
 
@@ -47,17 +54,11 @@ class AccountApp(cmd2.Cmd):
     @with_argparser(argparser)
     @cmd2.with_category(CUSTOM_CATEGORY)
     def do_deploy(self, arg):
-        table = self.db.table("account_details")
-        account = Query()
-        details = table.get(account.account_name == self.account_name)
-
-        repo = details.get("repo_name")
-        key = encrypt.decrypt_string(self.passphrase, details.get("api_key"))
         build_id = "".join(
             random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
         )
         try:
-            build(key, self.account_name, repo, self.db, build_id)
+            build(self.wf, self.account_name, self.db, build_id)
             print("Deployment complete: ✅")
         except Exception as e:
             logger.error(e)
@@ -84,10 +85,10 @@ class AccountApp(cmd2.Cmd):
             print("Error: --id is required when --config is provided.")
             return
         if arg.id and arg.config:
-            deployment_info(self.account_name, arg.id, arg.config)
+            deployment_info(self.account_name, arg.id, arg.config, self.wf)
 
         if arg.id and not arg.config:
-            deployment_info(self.account_name, arg.id, arg.config)
+            deployment_info(self.account_name, arg.id, arg.config, self.wf)
 
         if not arg.id and not arg.config:
             list_deployments(self.account_name)
@@ -100,14 +101,8 @@ class AccountApp(cmd2.Cmd):
     @with_argparser(argparser)
     @cmd2.with_category(CUSTOM_CATEGORY)
     def do_teardown(self, arg):
-        table = self.db.table("account_details")
-        account = Query()
-        details = table.get(account.account_name == self.account_name)
         workflow_id = arg.workflow_id
-        repo = details.get("repo_name")
-        key = encrypt.decrypt_string(self.passphrase, details.get("api_key"))
-        work = Workflow(key, self.account_name, repo)
-        work.cancel_workflow(workflow_id)
+        self.wf.cancel_workflow(workflow_id)
 
 
 class HomepageApp(cmd2.Cmd):

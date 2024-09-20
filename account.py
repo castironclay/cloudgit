@@ -5,7 +5,8 @@ from rich import print
 from tinydb import Query, TinyDB
 
 import encrypt
-from rich_tables import account_details
+from githubmesh import Workflow
+from rich_tables import account_details, deployment_details
 
 
 def new_account(passphrase: str) -> bool:
@@ -77,15 +78,17 @@ def list_deployments(account_name: str) -> None:
             print(f'{index+1}: {deployment.get("deploy_id")}')
 
 
-def deployment_info(account_name: str, deploy_id: str, config: bool) -> None:
+def deployment_info(
+    account_name: str, deploy_id: str, config: bool, wf: Workflow
+) -> None:
     home = Path.home()
     file = f"{home}/.cloudgit/cg.db"
 
     db = TinyDB(file)
     table = db.table("deployments")
     deployment = Query()
+    info = table.get(deployment.deploy_id == deploy_id)
     if config:
-        info = table.get(deployment.deploy_id == deploy_id)
         wg_config = info.get("wg_config")
         wg_config = encrypt.decode_base64_to_string(wg_config).decode()
 
@@ -93,4 +96,5 @@ def deployment_info(account_name: str, deploy_id: str, config: bool) -> None:
         print("")
         print(info.get("wstunnel_command"))
     if not config:
-        print(table.get(deployment.deploy_id == deploy_id))
+        status = wf.check_status(info.get("workflow_id"))
+        deployment_details(account_name, deploy_id, info.get("workflow_id"), status)

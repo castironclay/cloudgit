@@ -158,8 +158,7 @@ def update_db(
     )
 
 
-def main(key: str, account: str, repo: str, db: TinyDB, deploy_id: str):
-    work = Workflow(key, account, repo)
+def main(wf: Workflow, account_name: str, db: TinyDB, deploy_id: str):
     try:
         print("Starting local listener...")
         server = Server()
@@ -167,8 +166,8 @@ def main(key: str, account: str, repo: str, db: TinyDB, deploy_id: str):
         random_file_name = tmp_file_name()
         local_cfd_url = local_cfd(server, random_port, random_file_name)
         print("Starting workflow...")
-        work.start_workflow(local_cfd_url, deploy_id)
-        workflow_id = work.check_running(deploy_id)
+        wf.start_workflow(local_cfd_url, deploy_id)
+        workflow_id = wf.check_running(deploy_id)
         print("Workflow started!")
         print("Waiting for remote url...")
         cf_url, wg_config = start_server(random_port)
@@ -176,10 +175,10 @@ def main(key: str, account: str, repo: str, db: TinyDB, deploy_id: str):
         wstunnel_command = f"wstunnel client -L 'udp://127.0.0.1:51820:127.0.0.1:51820?timeout_sec=0' wss://{cf_url[8:]}"
         print("Killing local listener")
         server.kill()
-        update_db(wg_config, account, db, workflow_id, wstunnel_command, deploy_id)
+        update_db(wg_config, account_name, db, workflow_id, wstunnel_command, deploy_id)
 
     except Exception as e:
         logger.error(f"Error occured: {e}")
         logger.error("Cancelling workflow")
-        work.cancel_workflow()
+        wf.cancel_workflow()
         server.kill()

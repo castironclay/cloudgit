@@ -65,3 +65,12 @@ class Workflow:
             cancel = f"https://api.github.com/repos/{self.account}/{self.repo}/actions/runs/{workflow_id}/cancel"
             s = self.session
             s.post(cancel)
+
+    def check_status(self, workflow_id: str = None):
+        workflow = f"https://api.github.com/repos/{self.account}/{self.repo}/actions/runs/{workflow_id}"
+        s = self.session
+        details = s.get(workflow)
+        output = details.json()
+        status = output.get("status")
+
+        return status
