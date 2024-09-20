@@ -59,16 +59,38 @@ def delete_account(account_name: str) -> None:
 def list_accounts() -> None:
     home = Path.home()
     file = f"{home}/.cloudgit/cg.db"
-    obj = Path(file)
-    db = None
 
-    if not obj.exists():
-        print("Must create database first")
+    db = TinyDB(file)
+    table = db.table("account_details")
+    for index, account in enumerate(table.all()):
+        print(f'Account{index+1}: {account.get("account_name")}')
 
-    else:
-        db = TinyDB(file)
-        table = db.table("account_details")
-        for index, account in enumerate(table.all()):
-            print(f'Account{index+1}: {account.get("account_name")}')
-    
 
+def list_deployments(account_name: str) -> None:
+    home = Path.home()
+    file = f"{home}/.cloudgit/cg.db"
+
+    db = TinyDB(file)
+    table = db.table("deployments")
+    for index, deployment in enumerate(table.all()):
+        if account_name == deployment.get("account_name"):
+            print(f'{index+1}: {deployment.get("deploy_id")}')
+
+
+def deployment_info(account_name: str, deploy_id: str, config: bool) -> None:
+    home = Path.home()
+    file = f"{home}/.cloudgit/cg.db"
+
+    db = TinyDB(file)
+    table = db.table("deployments")
+    deployment = Query()
+    if config:
+        info = table.get(deployment.deploy_id == deploy_id)
+        wg_config = info.get("wg_config")
+        wg_config = encrypt.decode_base64_to_string(wg_config).decode()
+
+        print(wg_config)
+        print("")
+        print(info.get("wstunnel_command"))
+    if not config:
+        print(table.get(deployment.deploy_id == deploy_id))

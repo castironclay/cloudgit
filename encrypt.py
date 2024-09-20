@@ -28,6 +28,11 @@ def decode_base64_to_bytes(s: str) -> bytes:
     """Decode a base64 string to bytes."""
     return base64.b64decode(s.encode("utf-8"))
 
+def decode_base64_to_string(s: str) -> str:
+    """Decode a base64 string to bytes."""
+    return base64.b64decode(s)
+
+
 
 def encrypt_string(passphrase: str, plaintext: str) -> str:
     """Encrypt a plaintext string and return it as a base64 string."""

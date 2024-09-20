@@ -1,3 +1,5 @@
+import random
+import string
 from getpass import getpass
 from pathlib import Path
 
@@ -8,9 +10,17 @@ from pyfiglet import Figlet
 from rich import print
 from tinydb import Query, TinyDB
 
-import account
 import encrypt
+from account import (
+    delete_account,
+    deployment_info,
+    list_accounts,
+    list_deployments,
+    new_account,
+    view_account,
+)
 from build import main as build
+from githubmesh import Workflow
 
 
 class AccountApp(cmd2.Cmd):
@@ -27,19 +37,77 @@ class AccountApp(cmd2.Cmd):
         # Set the default category name
         self.default_category = "Built-in Commands"
 
-    argparser = Cmd2ArgumentParser(description="build new runner")
-    argparser.add_argument("--logs", help="watch logs", action="store_true")
+    argparser = Cmd2ArgumentParser(
+        description="""
+        Deploy a new runner. A deployment ID will be assigned and all deployment
+        details will be stored in the database.
+        """
+    )
 
     @with_argparser(argparser)
     @cmd2.with_category(CUSTOM_CATEGORY)
-    def do_build(self, arg):
+    def do_deploy(self, arg):
         table = self.db.table("account_details")
         account = Query()
         details = table.get(account.account_name == self.account_name)
 
         repo = details.get("repo_name")
         key = encrypt.decrypt_string(self.passphrase, details.get("api_key"))
-        build(key, self.account_name, repo, self.db)
+        build_id = "".join(
+            random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
+        )
+        try:
+            build(key, self.account_name, repo, self.db, build_id)
+            print("Deployment complete: ✅")
+        except Exception as e:
+            logger.error(e)
+            print("Deployment failed: ❌")
+
+    argparser = Cmd2ArgumentParser(description="list user deployments")
+    argparser.add_argument(
+        "--id",
+        type=str,
+        help="provide deploy ID to see all details",
+        required=False,
+    )
+    argparser.add_argument(
+        "--config",
+        help="view wireguard config",
+        required=False,
+        action="store_true",
+    )
+
+    @with_argparser(argparser)
+    @cmd2.with_category(CUSTOM_CATEGORY)
+    def do_info(self, arg):
+        if arg.config and not arg.id:
+            print("Error: --id is required when --config is provided.")
+            return
+        if arg.id and arg.config:
+            deployment_info(self.account_name, arg.id, arg.config)
+
+        if arg.id and not arg.config:
+            deployment_info(self.account_name, arg.id, arg.config)
+
+        if not arg.id and not arg.config:
+            list_deployments(self.account_name)
+
+    argparser = Cmd2ArgumentParser(description="teardown deployment")
+    argparser.add_argument(
+        "workflow_id", help="provide workflow ID from deployment details"
+    )
+
+    @with_argparser(argparser)
+    @cmd2.with_category(CUSTOM_CATEGORY)
+    def do_teardown(self, arg):
+        table = self.db.table("account_details")
+        account = Query()
+        details = table.get(account.account_name == self.account_name)
+        workflow_id = arg.workflow_id
+        repo = details.get("repo_name")
+        key = encrypt.decrypt_string(self.passphrase, details.get("api_key"))
+        work = Workflow(key, self.account_name, repo)
+        work.cancel_workflow(workflow_id)
 
 
 class HomepageApp(cmd2.Cmd):
@@ -106,7 +174,7 @@ class HomepageApp(cmd2.Cmd):
     @with_argparser(argparser)
     @cmd2.with_category(CUSTOM_CATEGORY)
     def do_new_account(self, _):
-        account.new_account(self.passphrase)
+        new_account(self.passphrase)
 
     argparser = Cmd2ArgumentParser(description="view account details")
     argparser.add_argument("account_name", help="name of account")
@@ -119,7 +187,7 @@ class HomepageApp(cmd2.Cmd):
     def do_view_account(self, arg):
         account_name = arg.account_name
         unsafe = arg.unsafe
-        account.view_account(account_name, self.passphrase, unsafe)
+        view_account(account_name, self.passphrase, unsafe)
 
     argparser = Cmd2ArgumentParser(description="delete account")
     argparser.add_argument("account_name", help="name of account")
@@ -128,14 +196,14 @@ class HomepageApp(cmd2.Cmd):
     @cmd2.with_category(CUSTOM_CATEGORY)
     def do_delete_account(self, arg):
         account_name = arg.account_name
-        account.delete_account(account_name)
+        delete_account(account_name)
 
     argparser = Cmd2ArgumentParser(description="list all accounts")
 
     @with_argparser(argparser)
     @cmd2.with_category(CUSTOM_CATEGORY)
     def do_list_accounts(self, arg):
-        account.list_accounts()
+        list_accounts()
 
     argparser = Cmd2ArgumentParser(description="manage deployments")
     argparser.add_argument("account_name", help="name of account")

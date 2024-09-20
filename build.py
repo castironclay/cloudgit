@@ -1,4 +1,3 @@
-import base64
 import http.server
 import random
 import socket
@@ -16,6 +15,7 @@ from tinydb import TinyDB
 from githubmesh import Workflow
 
 url = None
+config = None
 
 
 def read_creds_file():
@@ -42,7 +42,7 @@ def check_listening(port: int) -> None:
         logger.error(e)
 
 
-def listener(port: int, db: TinyDB) -> str:
+def listener(port: int) -> str:
     try:
 
         class Server(socketserver.TCPServer):
@@ -58,32 +58,25 @@ def listener(port: int, db: TinyDB) -> str:
                 parsed_path = urllib.parse.urlparse(self.path)
                 query_params = urllib.parse.parse_qs(parsed_path.query)
                 global url
+                global config
                 try:
                     url = query_params.get("url")[0]
                     self.send_response(200, "OK")
                     self.end_headers()
                     self.wfile.write("URL Received!".encode("utf-8"))
 
-                except TypeError:
+                except Exception:
                     self.send_response(200, "OK")
                     self.end_headers()
                     self.wfile.write("URL Missing!".encode("utf-8"))
 
                 try:
                     config = query_params.get("config")[0]
-                    decoded_bytes = base64.b64decode(config)
-                    decoded_string = decoded_bytes.decode("utf-8")
-                    table = db.table("deployments")
-                    table.insert({"test": config})
-                    print("\n")
-
-                    print(decoded_string)
-                    print("\n")
                     self.send_response(200, "OK")
                     self.end_headers()
                     self.wfile.write("config Received!".encode("utf-8"))
 
-                except TypeError:
+                except Exception:
                     self.send_response(200, "OK")
                     self.end_headers()
                     self.wfile.write("URL Missing!".encode("utf-8"))
@@ -98,18 +91,18 @@ def listener(port: int, db: TinyDB) -> str:
                 httpd.handle_request()
             httpd.server_close()
 
-        return url
+        return url, config
     except Exception as e:
         logger.error(e)
 
 
-def start_server(random_port: int, db: TinyDB) -> str:
+def start_server(random_port: int) -> str:
     try:
         cf_url = None
         if check_listening(random_port):
             while not url:
                 print(f"Starting listener on port {random_port}")
-                cf_url = listener(random_port, db)
+                cf_url = listener(random_port)
 
         return cf_url
     except Exception as e:
@@ -145,7 +138,27 @@ def tmp_file_name() -> str:
     return "".join(random.choices(chars, k=length))
 
 
-def main(key: str, account: str, repo: str, db: TinyDB):
+def update_db(
+    wg_config: str,
+    account_name: str,
+    db: TinyDB,
+    workflow_id: str,
+    wstunnel_command: str,
+    deploy_id: str,
+):
+    table = db.table("deployments")
+    table.insert(
+        {
+            "deploy_id": deploy_id,
+            "account_name": account_name,
+            "wg_config": wg_config,
+            "workflow_id": workflow_id,
+            "wstunnel_command": wstunnel_command,
+        }
+    )
+
+
+def main(key: str, account: str, repo: str, db: TinyDB, deploy_id: str):
     work = Workflow(key, account, repo)
     try:
         print("Starting local listener...")
@@ -154,16 +167,16 @@ def main(key: str, account: str, repo: str, db: TinyDB):
         random_file_name = tmp_file_name()
         local_cfd_url = local_cfd(server, random_port, random_file_name)
         print("Starting workflow...")
-        work.start_workflow(local_cfd_url)
-        work.check_running()
+        work.start_workflow(local_cfd_url, deploy_id)
+        workflow_id = work.check_running(deploy_id)
         print("Workflow started!")
-        cf_url = start_server(random_port, db)
         print("Waiting for remote url...")
-        print(
-            f"wstunnel client -L 'udp://127.0.0.1:51820:127.0.0.1:51820?timeout_sec=0' wss://{cf_url[8:]}"
-        )
+        cf_url, wg_config = start_server(random_port)
+        print("URL received!")
+        wstunnel_command = f"wstunnel client -L 'udp://127.0.0.1:51820:127.0.0.1:51820?timeout_sec=0' wss://{cf_url[8:]}"
         print("Killing local listener")
         server.kill()
+        update_db(wg_config, account, db, workflow_id, wstunnel_command, deploy_id)
 
     except Exception as e:
         logger.error(f"Error occured: {e}")
