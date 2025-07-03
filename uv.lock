@@ -67,6 +67,7 @@ dependencies = [
     { name = "cmd2" },
     { name = "cryptography" },
     { name = "exceptiongroup" },
+    { name = "gnureadline" },
     { name = "h11" },
     { name = "httpcore" },
     { name = "httpx" },
@@ -96,6 +97,7 @@ requires-dist = [
     { name = "cmd2", specifier = "==2.4.3" },
     { name = "cryptography", specifier = "==43.0.1" },
     { name = "exceptiongroup", specifier = "==1.2.2" },
+    { name = "gnureadline", specifier = ">=8.2.13" },
     { name = "h11", specifier = "==0.14.0" },
     { name = "httpcore", specifier = "==1.0.5" },
     { name = "httpx", specifier = "==0.27.2" },
@@ -176,6 +178,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/09/35/2495c4ac46b980e4ca1f6ad6db102322ef3ad2410b79fdde159a4b0f3b92/exceptiongroup-1.2.2.tar.gz", hash = "sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc", size = 28883, upload-time = "2024-07-12T22:26:00.161Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/cc/b7e31358aac6ed1ef2bb790a9746ac2c69bcb3c8588b41616914eb106eaf/exceptiongroup-1.2.2-py3-none-any.whl", hash = "sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b", size = 16453, upload-time = "2024-07-12T22:25:58.476Z" },
+]
+
+[[package]]
+name = "gnureadline"
+version = "8.2.13"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/92/20723aa239b9a8024e6f8358c789df8859ab1085a1ae106e5071727ad20f/gnureadline-8.2.13.tar.gz", hash = "sha256:c9b9e1e7ba99a80bb50c12027d6ce692574f77a65bf57bc97041cf81c0f49bd1", size = 3224991, upload-time = "2024-10-18T14:03:11.727Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/b0/4a3c55a05b4c1c240fd6dc204ff597432008c4649ce500688a2441d27cf4/gnureadline-8.2.13-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:2d3e33d2e0dd694d623a2ca1fae6990b52f1d25955504b7293a9350fb9912940", size = 160646, upload-time = "2024-10-18T14:04:00.723Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/41/8821db40f2b0dd9cc935d6838bc63776fb5bfb1df092f8d4698ec29ada6a/gnureadline-8.2.13-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:6c550d08c4d2882a83293a724b14a262ee5078fd4fa7acdc78aa59cab26ae343", size = 162630, upload-time = "2024-10-18T14:04:02.711Z" },
+    { url = "https://files.pythonhosted.org/packages/16/8e/9f716757f875dfea0c9f5a323e103eec8a546e650a37c7f133a9b86c2c8f/gnureadline-8.2.13-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a7d6e3f5d9fd0cf8a84fb382d4e3ad2914331be4d929f17d50da01f1571c4b03", size = 650930, upload-time = "2024-10-18T14:04:05.539Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/2c/29cc2b99b9c7f49041edefe3c051c566e60080631dd4241cae269a2f067b/gnureadline-8.2.13-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f59275168cae1b02ca1ec7586a9804bb04ce427df92f8582a80d16e96c846b78", size = 654619, upload-time = "2024-10-18T14:04:07.604Z" },
 ]
 
 [[package]]
