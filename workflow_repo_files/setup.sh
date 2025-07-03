@@ -7,7 +7,6 @@ WG_CLIENT_CONF="${WG_DIR}/client.conf"
 SERVER_IP="10.0.0.1"
 SERVER_PORT="51820"
 CLIENT_IP="10.0.0.2"
-PSK=$(wg genpsk)
 
 # Install WireGuard if not installed
 if ! command -v wg >/dev/null 2>&1; then
@@ -39,7 +38,7 @@ PrivateKey = $(sudo cat $WG_DIR/server_private.key)
 
 [Peer]
 PublicKey = $(sudo cat $WG_DIR/client_public.key)
-PresharedKey = $PSK
+PresharedKey = 5dejphnQf6aaLv7xOb36nojgOPZLilxubSNuVrGzHpw=
 AllowedIPs = $CLIENT_IP/32
 EOF
 
@@ -50,11 +49,12 @@ sudo tee $WG_CLIENT_CONF > /dev/null <<EOF
 PrivateKey = $(sudo cat $WG_DIR/client_private.key)
 ListenPort = 52820
 Address = $CLIENT_IP/32
-MTU = 1300
+DNS = 1.1.1.1
+MTU = 1200
 
 [Peer]
 PublicKey = $(sudo cat $WG_DIR/server_public.key)
-PresharedKey = $PSK
+PresharedKey = 5dejphnQf6aaLv7xOb36nojgOPZLilxubSNuVrGzHpw=
 AllowedIPs = 10.0.0.1/32
 Endpoint = 127.0.0.1:51820
 EOF
@@ -63,14 +63,12 @@ EOF
 echo "Enabling IP forwarding..."
 sudo sysctl -w net.ipv4.ip_forward=1
 sudo sh -c 'echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf'
+sudo iptables -t nat -I POSTROUTING -j MASQUERADE
 
 # Start WireGuard
 echo "Starting WireGuard..."
 sudo systemctl enable wg-quick@wg0
 sudo systemctl start wg-quick@wg0
-
-# Display keys and configuration
-echo "WireGuard setup complete!"
 
 sudo cp /etc/wireguard/client.conf /tmp/
 sudo chmod 755 /tmp/client.conf
